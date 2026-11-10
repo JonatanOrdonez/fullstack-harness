@@ -68,6 +68,8 @@ test('POST /api/rooms returns 400 when the name is missing', async () => {
 });
 ```
 
+Pitfall (CommonJS projects, no `"type": "module"`): with `module: nodenext`, `(await import('../../src/app')).default` can be typed as the whole module (TS2740 "missing properties from type Express"). Unwrap it once in a helper: `const mod = await import('../../src/app'); const app = ((mod.default as unknown as { default?: Express }).default ?? mod.default) as Express;`. Alternatively set `"type": "module"`.
+
 Validation and auth failures (400/401) are testable without a database because they fail before the repository. For success paths, mock the service module like above.
 
 ## Auth tests

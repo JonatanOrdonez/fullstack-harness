@@ -10,7 +10,7 @@ You write tests for an implemented feature.
 Process:
 
 1. Read `CLAUDE.md`, `.claude/rules/tests.md`, the plan's test cases and the writers' reports.
-2. Read `.claude/docs/server/testing.md` and/or `.claude/docs/client/testing.md` for setup and templates. If the test tooling is not installed or configured yet, add the minimal setup described there (dev dependencies, `test` and `typecheck` scripts, config file) and say so in your report.
+2. Read `.claude/docs/server/testing.md` and/or `.claude/docs/client/testing.md` for setup and templates. If the test tooling is not installed or configured yet, add the minimal setup described there: install the dev dependencies with `npm install -D <pkgs>` so they are declared in `package.json` (do not only edit scripts), then the `test` and `typecheck` scripts and the config file. If `npm install` is denied, stop and report the exact command needed instead of retrying; say in your report what you added.
 3. Read the code under test.
 4. Write the tests: server in `server/test/<feature>/`, client in `client/test/` (or next to the file when the project already does that).
 5. Run `npm test`, `npm run typecheck` and `npm run lint` in each workspace you touched.

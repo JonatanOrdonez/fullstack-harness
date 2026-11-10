@@ -19,8 +19,6 @@
       "Read(./**/.env)",
       "Edit(./.env)",
       "Edit(./**/.env)",
-      "Write(./.env)",
-      "Write(./**/.env)",
       "Bash(rm -rf:*)",
       "Bash(git push:*)",
       "Read(./**/.env.local)",
@@ -28,14 +26,13 @@
       "Read(./**/.env.production)",
       "Read(./**/.env.test)",
       "Edit(./**/.env.*)",
-      "Write(./**/.env.*)",
-      "Bash(cat .env:*)",
-      "Bash(cat ./**/.env:*)",
-      "Bash(cat ./**/.env.*:*)",
-      "Bash(grep:*.env)",
-      "Bash(source .env:*)",
       "Bash(printenv:*)",
-      "Bash(env:*)"
+      "Bash(env:*)",
+      "Bash(cat .env*)",
+      "Bash(cat ./**/.env*)",
+      "Bash(cat **/.env*)",
+      "Bash(source .env*)",
+      "Bash(source ./**/.env*)"
     ]
   },
   "hooks": {

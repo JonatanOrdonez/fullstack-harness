@@ -23,3 +23,8 @@ It follows a plan → implement → test → review loop, enforced by agents, ru
 3. Run `/add-feature <description>` in Claude Code, or `./.claude/scripts/harness.sh "<description>"` headless.
 
 The hooks do nothing until a workspace has a `package.json` and `node_modules`, so the harness is safe to drop into an empty project.
+
+## Headless notes
+
+- `claude -p` ignores `permissions.allow` in `.claude/settings.json` until the folder is trusted: run `claude` interactively in the project once and accept the trust dialog. `harness.sh` checks this and warns.
+- Headless runs cannot ask for approval. `harness.sh` pre-approves only `npm install`/`npm i` (needed so `test-writer` can declare test tooling); everything else denied is reported and the run fails.
