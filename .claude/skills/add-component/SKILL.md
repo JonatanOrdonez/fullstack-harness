@@ -1,6 +1,7 @@
 ---
 name: add-component
 description: Adds one React component to client/components following the project conventions (named export, typed props, Tailwind, loading/empty/error states). Use for a single UI piece.
+argument-hint: "<Name and purpose>"
 ---
 
 # Add a component

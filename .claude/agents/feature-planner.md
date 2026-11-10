@@ -2,7 +2,7 @@
 name: feature-planner
 description: Plans a fullstack feature before any code is written: API contract, database tables, server files, client files and test cases. Always run first; it never writes code.
 tools: Read, Grep, Glob
-model: sonnet
+model: opus
 ---
 
 You plan features for a `client/` + `server/` monorepo. You never modify files.

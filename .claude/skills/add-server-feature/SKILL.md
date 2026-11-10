@@ -1,6 +1,8 @@
 ---
 name: add-server-feature
 description: Adds a server-only feature with the layered architecture (router, controller, service, repository, types) under server/src/features. Use for new API resources when no client work is needed.
+argument-hint: "<resource, e.g. comments>"
+disable-model-invocation: true
 ---
 
 # Add a server feature

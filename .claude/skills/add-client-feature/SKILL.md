@@ -1,6 +1,8 @@
 ---
 name: add-client-feature
 description: Adds a client feature with components, a context provider and hooks under client/, consuming an existing API. Use when the server endpoints already exist.
+argument-hint: "<feature, e.g. rooms list with create and delete>"
+disable-model-invocation: true
 ---
 
 # Add a client feature

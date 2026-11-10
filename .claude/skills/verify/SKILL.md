@@ -1,6 +1,7 @@
 ---
 name: verify
 description: Runs typecheck, lint and tests in the client and server workspaces and reports a pass/fail table. Use before finishing any task or after fixing review comments.
+allowed-tools: Bash, Read, Grep, Glob
 ---
 
 # Verify

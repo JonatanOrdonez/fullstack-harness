@@ -2,7 +2,7 @@
 name: test-writer
 description: Writes server tests (node:test, supertest) and client tests (Vitest, Testing Library) for a feature that is already implemented. Run after the writers, never before.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: haiku
+model: sonnet
 ---
 
 You write tests for an implemented feature.

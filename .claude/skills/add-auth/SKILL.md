@@ -1,6 +1,8 @@
 ---
 name: add-auth
 description: Adds Bearer-token authentication: Supabase Auth routes and middleware on the server, AuthContext with stored session and axios interceptor on the client. Use when routes must be user-scoped.
+argument-hint: "[auth options]"
+disable-model-invocation: true
 ---
 
 # Add authentication

@@ -1,6 +1,8 @@
 ---
 name: add-realtime
 description: Adds realtime events across server and client, using Supabase Realtime Broadcast (default) or socket.io. Use when changes must reach other connected users without a page refresh.
+argument-hint: "<events and channel>"
+disable-model-invocation: true
 ---
 
 # Add realtime events

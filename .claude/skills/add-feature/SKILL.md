@@ -1,6 +1,8 @@
 ---
 name: add-feature
 description: Orchestrates a complete fullstack feature (plan, server, client, tests, review) by running the project agents in order. Use when the user asks for a new feature that touches both client and server.
+argument-hint: "<feature description>"
+disable-model-invocation: true
 ---
 
 # Add a fullstack feature

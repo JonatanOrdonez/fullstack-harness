@@ -1,6 +1,8 @@
 ---
 name: add-file-upload
 description: Adds file uploads end to end: multer on the server storing in Supabase Storage, and a client hook that validates, compresses and uploads. Use for images or documents attached to features.
+argument-hint: "<file kind and limits>"
+disable-model-invocation: true
 ---
 
 # Add file uploads

@@ -10,7 +10,9 @@
       "Bash(npx vitest:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npx prettier --check:*)"
     ],
     "deny": [
       "Read(./.env)",
@@ -20,7 +22,20 @@
       "Write(./.env)",
       "Write(./**/.env)",
       "Bash(rm -rf:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Read(./**/.env.local)",
+      "Read(./**/.env.development)",
+      "Read(./**/.env.production)",
+      "Read(./**/.env.test)",
+      "Edit(./**/.env.*)",
+      "Write(./**/.env.*)",
+      "Bash(cat .env:*)",
+      "Bash(cat ./**/.env:*)",
+      "Bash(cat ./**/.env.*:*)",
+      "Bash(grep:*.env)",
+      "Bash(source .env:*)",
+      "Bash(printenv:*)",
+      "Bash(env:*)"
     ]
   },
   "hooks": {

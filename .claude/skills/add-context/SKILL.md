@@ -1,6 +1,7 @@
 ---
 name: add-context
 description: Adds a React context (provider + use hook) to client/context that loads data from the API and exposes actions. Use for shared client state.
+argument-hint: "<Domain, e.g. Rooms>"
 ---
 
 # Add a context

@@ -1,6 +1,7 @@
 ---
 name: add-hook
 description: Adds a reusable custom hook to client/hooks (for example uploads, debounce, subscriptions) following the project conventions. Use for stateful logic that is not shared app state.
+argument-hint: "<useName and purpose>"
 ---
 
 # Add a hook

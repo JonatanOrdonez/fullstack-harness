@@ -1,6 +1,7 @@
 ---
 name: add-db-table
 description: Adds a PostgreSQL table to server/src/db/db.ts (idempotent initDb) and the repository functions that use it. Use when a feature needs persistent data.
+argument-hint: "<table and columns>"
 ---
 
 # Add a database table
