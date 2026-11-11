@@ -19,7 +19,7 @@ The harness turns "build me a feature" into a fixed loop: **plan → server → 
    ┌──────────┬───────────┼────────────┬──────────────┬──────────────┐
    ▼          ▼           ▼            ▼              ▼              
  planner → server-writer → client-writer → test-writer → code-reviewer
- (opus)     (sonnet)       (sonnet)        (sonnet)       (opus)
+ (opus)     (sonnet)       (sonnet)        (sonnet)       (sonnet)
  read-only  server/ only   client/ only    tests only     read-only
    │            │              │              │              │
    └────────────┴──────┬───────┴──────────────┴──────────────┘
@@ -78,7 +78,7 @@ Agents never call each other: a subagent cannot launch another one, so the orche
 | `server-writer` | sonnet | + Edit, Write, Bash | `server/` (no tests) | rules `server-*`, `docs/server/*`, one existing feature | Files, route list, env vars, error cases |
 | `client-writer` | sonnet | + Edit, Write, Bash | `client/` (no tests) | rules `client-*`, `docs/client/*`, server-writer's report | Files, context values, props, server mismatches |
 | `test-writer` | sonnet | + Edit, Write, Bash | test files and test config only | `rules/tests.md`, `docs/*/testing.md`, the code under test | Tests written, pass/fail, real bugs found (never "fixes" them) |
-| `code-reviewer` | opus | Read, Grep, Glob, Bash | nothing | `docs/workflow/review-checklist.md`, rules, the diff | Blockers, suggestions, checks, `APPROVED` / `CHANGES REQUIRED` |
+| `code-reviewer` | sonnet | Read, Grep, Glob, Bash | nothing | `docs/workflow/review-checklist.md`, rules, the diff | Blockers, suggestions, checks, `APPROVED` / `CHANGES REQUIRED` |
 
 Handoffs: planner → (plan) → server-writer → (plan + server report) → client-writer → (plan + both reports) → test-writer → (plan's test cases + reports) → code-reviewer.
 
