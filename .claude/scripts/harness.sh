@@ -13,11 +13,14 @@ WORK="$(mktemp -d)"
 RESULT=fail
 # Keep plan, review and verify logs for debugging when the run does not succeed.
 trap '[ "$RESULT" = ok ] && rm -rf "$WORK" || echo "Logs kept in $WORK" >&2' EXIT
-HEADLESS="Headless run: nobody can answer questions or approve prompts. Never ask for permission. Do not run npm install: declare dependencies in package.json and the script installs them. If another command is denied, stop and report it."
+HEADLESS="Headless run: nobody can answer questions or approve prompts. Never ask for permission. You may run npm install for dev dependencies (the script also installs before verifying). If another command is denied, stop and report it."
 # Untrusted folders ignore permissions.allow, so the checks agents need are granted here explicitly.
 # An array, never an unquoted string: each pattern contains spaces ("Bash(npm run test:*)") and word
 # splitting would turn it into two invalid rules, so every Bash call would be denied.
-CHECK_TOOLS=("Bash(cd:*)" "Bash(git status:*)" "Bash(git diff:*)" "Bash(npm test:*)" "Bash(npx tsc:*)" "Bash(npx eslint:*)" "Bash(npx vitest:*)")
+# Agents chain commands ("cd server && npm test; echo EXIT: $?") and every part of a compound command must be
+# allowed, so harmless helpers (echo, ls, pwd, head, tail) are listed too. npm install is allowed so test-writer
+# can add test tooling; the script also installs before each verify.
+CHECK_TOOLS=("Bash(echo:*)" "Bash(ls:*)" "Bash(pwd:*)" "Bash(head:*)" "Bash(tail:*)" "Bash(npm install:*)" "Bash(cd:*)" "Bash(git status:*)" "Bash(git diff:*)" "Bash(npm test:*)" "Bash(npx tsc:*)" "Bash(npx eslint:*)" "Bash(npx vitest:*)")
 # Only the scripts the flow needs (never `npm run dev`, which hangs a headless run).
 for WS in server client; do
   for SCRIPT in typecheck lint test build; do
