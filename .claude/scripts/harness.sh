@@ -24,9 +24,11 @@ CHECK_TOOLS=("Bash(echo:*)" "Bash(ls:*)" "Bash(pwd:*)" "Bash(head:*)" "Bash(tail
 # Only the scripts the flow needs (never `npm run dev`, which hangs a headless run).
 for WS in server client; do
   for SCRIPT in typecheck lint test build; do
-    CHECK_TOOLS+=("Bash(npm --prefix $WS run $SCRIPT:*)" "Bash(npm run $SCRIPT:*)")
+    CHECK_TOOLS+=("Bash(npm --prefix $WS run $SCRIPT:*)" "Bash(npm run $SCRIPT:*)" "Bash(npm --prefix * run $SCRIPT*)")
   done
 done
+# Agents pass absolute --prefix paths and `npm test` without `run`; Next.js route types need `next typegen`.
+CHECK_TOOLS+=("Bash(npm --prefix * test*)" "Bash(npx next typegen*)")
 # The Stop hook would make these sessions fix failures on their own; the script runs its own verify.
 export HARNESS_HEADLESS=1
 PLAN="$WORK/plan.md"
