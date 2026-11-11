@@ -13,14 +13,14 @@ WORK="$(mktemp -d)"
 RESULT=fail
 # Keep plan, review and verify logs for debugging when the run does not succeed.
 trap '[ "$RESULT" = ok ] && rm -rf "$WORK" || echo "Logs kept in $WORK" >&2' EXIT
-HEADLESS="Headless run: nobody can answer questions or approve prompts. Never ask for permission. You may run npm install for dev dependencies (the script also installs before verifying). If another command is denied, stop and report it."
+HEADLESS="Headless run: nobody can answer questions or approve prompts. Never ask for permission. You may run npm install for dev dependencies (the script also installs before verifying). If a command is denied, do not stop: skip it, finish everything else you can, and list the denied command in your answer."
 # Untrusted folders ignore permissions.allow, so the checks agents need are granted here explicitly.
 # An array, never an unquoted string: each pattern contains spaces ("Bash(npm run test:*)") and word
 # splitting would turn it into two invalid rules, so every Bash call would be denied.
 # Agents chain commands ("cd server && npm test; echo EXIT: $?") and every part of a compound command must be
 # allowed, so harmless helpers (echo, ls, pwd, head, tail) are listed too. npm install is allowed so test-writer
 # can add test tooling; the script also installs before each verify.
-CHECK_TOOLS=("Bash(echo:*)" "Bash(ls:*)" "Bash(pwd:*)" "Bash(head:*)" "Bash(tail:*)" "Bash(npm install:*)" "Bash(cd:*)" "Bash(git status:*)" "Bash(git diff:*)" "Bash(npm test:*)" "Bash(npx tsc:*)" "Bash(npx eslint:*)" "Bash(npx vitest:*)")
+CHECK_TOOLS=("Bash(echo:*)" "Bash(ls:*)" "Bash(pwd:*)" "Bash(head:*)" "Bash(tail:*)" "Bash(npm install:*)" "Bash(npm pkg:*)" "Bash(mkdir:*)" "Bash(cd:*)" "Bash(git status:*)" "Bash(git diff:*)" "Bash(npm test:*)" "Bash(npx tsc:*)" "Bash(npx eslint:*)" "Bash(npx vitest:*)")
 # Only the scripts the flow needs (never `npm run dev`, which hangs a headless run).
 for WS in server client; do
   for SCRIPT in typecheck lint test build; do
@@ -31,6 +31,32 @@ done
 export HARNESS_HEADLESS=1
 PLAN="$WORK/plan.md"
 REVIEW="$WORK/review.md"
+
+# Runs `claude` with JSON output so permission denials are never lost in agent prose: the answer is printed as
+# before, and every denied tool call is echoed as "DENIED> ..." (stderr) and summarized at the end of the run.
+run_claude() {
+  local out rc=0
+  out="$(mktemp "$WORK/claude.XXXXXX")"
+  claude "$@" --output-format json </dev/null >"$out" 2>"$out.err" || rc=$?
+  [ -s "$out.err" ] && cat "$out.err" >&2
+  python3 - "$out" "$WORK/denials.log" <<'PY'
+import json, sys
+raw = open(sys.argv[1]).read()
+try:
+    data = json.loads(raw)
+except Exception:
+    print(raw)
+    sys.exit(0)
+print(data.get("result", ""))
+for denial in data.get("permission_denials") or []:
+    tool_input = denial.get("tool_input") or {}
+    detail = tool_input.get("command") or tool_input.get("file_path") or json.dumps(tool_input)
+    line = "DENIED> %s: %s" % (denial.get("tool_name"), detail)
+    print(line, file=sys.stderr)
+    open(sys.argv[2], "a").write(line + "\n")
+PY
+  return $rc
+}
 
 if ! grep -q '"hasTrustDialogAccepted": true' <(python3 -c "
 import json,os,sys
@@ -100,16 +126,16 @@ verdict_approved() {
 }
 
 echo "==> 1 Plan"
-claude -p "Use the feature-planner agent to plan this feature: $FEATURE. Output only the plan." \
+run_claude -p "Use the feature-planner agent to plan this feature: $FEATURE. Output only the plan." \
   --permission-mode plan --max-turns 20 | tee "$PLAN"
 
 echo "==> 2 Implement server, then client"
-claude -p "$HEADLESS Implement this plan. Run the server-writer agent first and, when it finishes, the client-writer agent. Plan:
+run_claude -p "$HEADLESS Implement this plan. Run the server-writer agent first and, when it finishes, the client-writer agent. Plan:
 $(cat "$PLAN")" \
   --permission-mode acceptEdits --allowedTools "${CHECK_TOOLS[@]}" --max-turns 40
 
 echo "==> 3 Tests"
-claude -p "$HEADLESS Run the test-writer agent to write tests for the feature that was just implemented. End your answer with exactly one line: 'BUGS: none' or 'BUGS: ' followed by the real production bugs it reported (file and behavior). Plan:
+run_claude -p "$HEADLESS Run the test-writer agent to write tests for the feature that was just implemented. End your answer with exactly one line: 'BUGS: none' or 'BUGS: ' followed by the real production bugs it reported (file and behavior). Plan:
 $(cat "$PLAN")" \
   --permission-mode acceptEdits --allowedTools "${CHECK_TOOLS[@]}" --max-turns 30 | tee "$WORK/tests.md"
 
@@ -117,7 +143,7 @@ $(cat "$PLAN")" \
 BUGS_LINE="$(grep -E '^[[:space:]*`]*BUGS:' "$WORK/tests.md" | tail -n1 | sed 's/^[[:space:]*`]*BUGS:[[:space:]]*//')"
 if [ -n "$BUGS_LINE" ] && ! printf '%s' "$BUGS_LINE" | grep -qiE '^[[:space:]*`]*none'; then
   echo "==> 3b Fix bugs found by the tests"
-  claude -p "$HEADLESS The tests found production bugs. Send each one to its owner agent (server-writer or client-writer) to fix, never to test-writer, then stop. Bugs: $BUGS_LINE" \
+  run_claude -p "$HEADLESS The tests found production bugs. Send each one to its owner agent (server-writer or client-writer) to fix, never to test-writer, then stop. Bugs: $BUGS_LINE" \
     --permission-mode acceptEdits --allowedTools "${CHECK_TOOLS[@]}" --max-turns 30
 fi
 
@@ -129,7 +155,7 @@ for ROUND in $(seq 1 "$MAX_ROUNDS"); do
 
   echo "==> 4 Review (round $ROUND/$MAX_ROUNDS)"
   # Not plan mode (it blocks Bash). Edit/Write are disallowed so the review stays read-only.
-  claude -p "$HEADLESS Use the code-reviewer agent to review the current changes against the plan. Do not edit anything and do not fix issues. Reply with the reviewer's complete answer verbatim, ending with its VERDICT line, and add nothing after it. Latest typecheck/lint/test output (a failing check is a blocker):
+  run_claude -p "$HEADLESS Use the code-reviewer agent to review the current changes against the plan. Do not edit anything and do not fix issues. Reply with the reviewer's complete answer verbatim, ending with its VERDICT line, and add nothing after it. Latest typecheck/lint/test output (a failing check is a blocker):
 $(cat "$WORK/verify.log")
 
 Plan:
@@ -144,7 +170,7 @@ $(cat "$PLAN")" \
 
   [ "$ROUND" -lt "$MAX_ROUNDS" ] || break
   echo "==> 4b Fix blockers"
-  claude -p "$HEADLESS Fix every blocker in this review, sending each to its owner agent (server-writer, client-writer or test-writer), then stop. Review:
+  run_claude -p "$HEADLESS Fix every blocker in this review, sending each to its owner agent (server-writer, client-writer or test-writer), then stop. Review:
 $(cat "$REVIEW")" \
     --permission-mode acceptEdits --allowedTools "${CHECK_TOOLS[@]}" --max-turns 40
 done
@@ -153,6 +179,11 @@ echo "==> 5 Verify (typecheck + lint + tests)"
 VERIFIED=0
 verify > "$WORK/verify.log" 2>&1 || VERIFIED=1
 cat "$WORK/verify.log"
+
+if [ -s "$WORK/denials.log" ]; then
+  echo "==> Denied tool calls (add them to CHECK_TOOLS if they are safe)"
+  sort "$WORK/denials.log" | uniq -c | sort -rn
+fi
 
 if [ "$APPROVED" -eq 1 ] && [ "$VERIFIED" -eq 0 ]; then
   RESULT=ok

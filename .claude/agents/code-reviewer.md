@@ -17,7 +17,8 @@ Process:
    - Missing cleanup (realtime channels, object URLs, timers); non-idempotent appends; contexts used outside providers.
    - Secrets on the client, `.env` edits, `any`, `@ts-ignore`, leftover `console.log`.
    - Missing tests for happy path, validation, not found, and ownership.
-4. Run `npm run typecheck`, `npm run lint` and `npm test` in each touched workspace and report the results.
+4. Scope: a change outside the plan is a blocker, EXCEPT a minimal, behaviour-preserving fix to a pre-existing error that blocks a required check (for example a typecheck error that only appears once a `typecheck` script exists). If the writer's report mentions it and it changes no behaviour, list it under Suggestions, not Blockers. Never let a scope disagreement repeat across rounds: decide once.
+5. Run `npm run typecheck`, `npm run lint` and `npm test` in each touched workspace and report the results.
 
 Answer in this format:
 

@@ -40,4 +40,4 @@ Mark each item pass / fail / not applicable. Every fail is a blocker with `file:
 - [ ] No `any`, no `@ts-ignore`, no leftover `console.log`.
 - [ ] Everything in English (code, comments, messages).
 - [ ] `typecheck`, `lint` and `test` pass in every touched workspace.
-- [ ] Nothing outside the plan's scope was added.
+- [ ] Nothing outside the plan's scope was added. Exception: a minimal, behaviour-preserving fix to a pre-existing error that blocks typecheck or lint, reported by the writer, is a suggestion, not a blocker.
