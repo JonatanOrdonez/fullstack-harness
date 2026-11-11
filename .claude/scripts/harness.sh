@@ -11,7 +11,7 @@ FEATURE="${1:?Usage: harness.sh \"feature description\"}"
 MAX_ROUNDS="${MAX_ROUNDS:-2}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-HEADLESS="Headless run: nobody can answer questions or approve prompts. Never ask for permission; if a command is denied, stop and report the exact command in your answer."
+HEADLESS="Headless run: nobody can answer questions or approve prompts. Never ask for permission. Do not run npm install: declare dependencies in package.json and the script installs them. If another command is denied, stop and report it."
 INSTALL_TOOLS="Bash(npm install:*) Bash(npm i:*)"
 PLAN="$WORK/plan.md"
 REVIEW="$WORK/review.md"
@@ -23,8 +23,19 @@ print(json.dumps(d,indent=1))" 2>/dev/null); then
   echo "WARN: this folder is not trusted yet; permissions.allow will be ignored. Run 'claude' here once and accept the trust dialog." >&2
 fi
 
+# Installs run from the script, not from the agents: headless agents cannot get npm install approved
+# (denied even with --allowedTools), but they can declare dependencies in package.json.
+install_deps() {
+  for WORKSPACE in server client; do
+    [ -f "$WORKSPACE/package.json" ] || continue
+    echo "==> npm install ($WORKSPACE)"
+    (cd "$WORKSPACE" && npm install --no-audit --no-fund) || echo "WARN: npm install failed in $WORKSPACE" >&2
+  done
+}
+
 verify() {
   local ok=0
+  install_deps
   for WORKSPACE in server client; do
     [ -f "$WORKSPACE/package.json" ] || continue
     (cd "$WORKSPACE" && npm run typecheck && npm run lint && npm test) || ok=1
