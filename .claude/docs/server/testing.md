@@ -8,7 +8,17 @@ Stack: `node:test` + `node:assert/strict`, run with `tsx`. Optional: `supertest`
 cd server && npm install -D supertest @types/supertest
 ```
 
-Scripts: see `env-config.md` (`test` uses `--import tsx --experimental-test-module-mocks`, which needs Node 22.3+). `typecheck` is `tsc --noEmit`; make sure `tsconfig.json` includes `test/**/*` for typechecking (or add `tsconfig.test.json`).
+Scripts: see `env-config.md` (`test` uses `--import tsx --experimental-test-module-mocks`, which needs Node 22.3+). `typecheck` is `tsc --noEmit`; typecheck the tests with a separate `tsconfig.test.json` (`extends` the base, `include` `src` and `test`, `rootDir: "."`, `noEmit`) and point the `typecheck` script at it (`tsc --noEmit -p tsconfig.test.json`). Do NOT add `test/**/*` or change `rootDir` in `tsconfig.json`: that moves the build output (`dist/src/...`) and breaks the `start` script.
+
+`tsconfig.test.json` (the build config stays untouched, so `npm run build` still emits `dist/index.js`, next to `src`'s layout, never `dist/src/`):
+
+```json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "rootDir": ".", "noEmit": true },
+  "include": ["src/**/*", "test/**/*"]
+}
+```
 
 Layout: `server/test/<feature>/<feature>.service.test.ts`, `<feature>.routes.test.ts`, `<feature>.repository.integration.test.ts`.
 

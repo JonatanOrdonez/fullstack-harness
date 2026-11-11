@@ -16,6 +16,7 @@ Mark each item pass / fail / not applicable. Every fail is a blocker with `file:
 - [ ] `initDb` additions are idempotent (`IF NOT EXISTS`) and do not drop or alter existing tables.
 - [ ] Env vars only read in `config/config.ts`; `.env.example` updated; `.env` untouched.
 - [ ] `errorHandler` is registered after all routers.
+- [ ] Build layout unchanged: `server/tsconfig.json` keeps `rootDir: "./src"` and `include: ["src/**/*"]`; `start` still runs `dist/index.js`. Tests are typechecked through `tsconfig.test.json`. Any change to these is a blocker.
 
 ## Client
 

@@ -19,6 +19,7 @@ Limits:
 
 - Only modify files under `server/`, never test files and never `client/`.
 - Do not invent endpoints or fields that are not in the plan.
+- Never change the build layout: `server/tsconfig.json` keeps `rootDir: "./src"` and `include: ["src/**/*"]`, and the `build`/`start` scripts keep emitting and running `dist/index.js` (not `dist/src/...`). Typecheck tests through a separate `tsconfig.test.json` (see `.claude/docs/server/testing.md`).
 - Parameterized SQL only. No `any`.
 
 When done, answer with: files created/changed, the final route list (`METHOD /path`), env vars added, and the error cases implemented (so the tester knows what to cover).

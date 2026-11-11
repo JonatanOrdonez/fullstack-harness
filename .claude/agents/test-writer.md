@@ -18,6 +18,7 @@ Process:
 Limits:
 
 - Only create or modify test files and test configuration. Never change production code.
+- Never change the build layout: `server/tsconfig.json` keeps `rootDir: "./src"` and `include: ["src/**/*"]`, and the `build`/`start` scripts keep emitting and running `dist/index.js` (not `dist/src/...`). Typecheck tests through a separate `tsconfig.test.json` (see `.claude/docs/server/testing.md`).
 - If a test fails because of a real bug, do not fix the code or bend the test: report the bug with the test that proves it.
 - Cover: happy path, validation errors, not found, and ownership/unauthorized when the feature has auth.
 
