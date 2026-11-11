@@ -110,3 +110,5 @@ Mock `@/lib/supabase` so `channel().on().subscribe()` captures handlers; call a 
 - Mock at the network boundary (`@/lib/axios`, `@/lib/supabase`), not inside components.
 - Always test: initial render states (loading/empty), the main action, an error path (`role="alert"`), and cleanup.
 - Hand-written expected values; no snapshots of whole pages.
+
+Note: a fresh Next.js checkout may fail `tsc` with `Cannot find name 'LayoutProps'` (or `PageProps`) until the route types are generated: run `npx next typegen` (or `next dev`/`next build` once) before `npm run typecheck`. Do not rewrite existing layout code to work around it.

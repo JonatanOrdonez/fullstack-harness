@@ -27,4 +27,6 @@ The hooks do nothing until a workspace has a `package.json` and `node_modules`, 
 ## Headless notes
 
 - `claude -p` ignores `permissions.allow` in `.claude/settings.json` until the folder is trusted: run `claude` interactively in the project once and accept the trust dialog. `harness.sh` checks this and warns.
-- Headless runs cannot ask for approval. `harness.sh` pre-approves only `npm install`/`npm i` (needed so `test-writer` can declare test tooling); everything else denied is reported and the run fails.
+- Headless runs cannot ask for approval. `harness.sh` grants the check commands agents need (`npm run`, `npm test`, `npx tsc/eslint/vitest`, read-only git) with `--allowedTools`, runs `npm install` itself before each verify, and keeps review sessions read-only (`--disallowedTools Edit Write`). Anything else denied is reported and the run fails.
+- It sets `HARNESS_HEADLESS=1`, which makes the Stop hook a no-op: the script runs its own verify. The reviewer's answer must end with a `VERDICT: APPROVED` / `VERDICT: CHANGES REQUIRED` line; a missing line counts as not approved.
+- `MAX_ROUNDS` (default 3) sets the review/fix rounds.

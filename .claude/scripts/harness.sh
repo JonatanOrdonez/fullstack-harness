@@ -8,11 +8,14 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 FEATURE="${1:?Usage: harness.sh \"feature description\"}"
-MAX_ROUNDS="${MAX_ROUNDS:-2}"
+MAX_ROUNDS="${MAX_ROUNDS:-3}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 HEADLESS="Headless run: nobody can answer questions or approve prompts. Never ask for permission. Do not run npm install: declare dependencies in package.json and the script installs them. If another command is denied, stop and report it."
-INSTALL_TOOLS="Bash(npm install:*) Bash(npm i:*)"
+# Untrusted folders ignore permissions.allow, so the checks agents need are granted here explicitly.
+CHECK_TOOLS="Bash(npm run:*) Bash(npm test:*) Bash(npx tsc:*) Bash(npx eslint:*) Bash(npx vitest:*) Bash(git status:*) Bash(git diff:*)"
+# The Stop hook would make these sessions fix failures on their own; the script runs its own verify.
+export HARNESS_HEADLESS=1
 PLAN="$WORK/plan.md"
 REVIEW="$WORK/review.md"
 
@@ -43,9 +46,12 @@ verify() {
   return $ok
 }
 
-# The verdict is the last non-empty line, so prose mentioning "APPROVED" cannot fool the script.
+# Only an explicit "VERDICT:" line counts (the last one wins), so prose mentioning "APPROVED" cannot fool
+# the script, and a missing verdict line counts as not approved.
 verdict_approved() {
-  [ "$(grep -v '^[[:space:]]*$' "$REVIEW" | tail -n1 | tr -d '[:space:]*`')" = "VERDICT:APPROVED" ]
+  local line
+  line="$(grep -E '^[[:space:]*`]*VERDICT:' "$REVIEW" | tail -n1 | tr -d '[:space:]*`')"
+  [ "$line" = "VERDICT:APPROVED" ]
 }
 
 echo "==> 1 Plan"
@@ -55,12 +61,12 @@ claude -p "Use the feature-planner agent to plan this feature: $FEATURE. Output 
 echo "==> 2 Implement server, then client"
 claude -p "$HEADLESS Implement this plan. Run the server-writer agent first and, when it finishes, the client-writer agent. Plan:
 $(cat "$PLAN")" \
-  --permission-mode acceptEdits --max-turns 40
+  --permission-mode acceptEdits --allowedTools $CHECK_TOOLS --max-turns 40
 
 echo "==> 3 Tests"
 claude -p "$HEADLESS Run the test-writer agent to write tests for the feature that was just implemented. Plan:
 $(cat "$PLAN")" \
-  --permission-mode acceptEdits --allowedTools $INSTALL_TOOLS --max-turns 30
+  --permission-mode acceptEdits --allowedTools $CHECK_TOOLS --max-turns 30
 
 APPROVED=0
 for ROUND in $(seq 1 "$MAX_ROUNDS"); do
@@ -69,13 +75,14 @@ for ROUND in $(seq 1 "$MAX_ROUNDS"); do
   tail -n 60 "$WORK/verify.log"
 
   echo "==> 4 Review (round $ROUND/$MAX_ROUNDS)"
-  # acceptEdits (not plan): the reviewer must run npm; it has no edit tools, so it stays read-only.
-  claude -p "$HEADLESS Use the code-reviewer agent to review the current changes against the plan. Latest typecheck/lint/test output (a failing check is a blocker):
+  # Not plan mode (it blocks Bash). Edit/Write are disallowed so the review stays read-only.
+  claude -p "$HEADLESS Use the code-reviewer agent to review the current changes against the plan. Do not edit anything and do not fix issues. Reply with the reviewer's complete answer verbatim, ending with its VERDICT line, and add nothing after it. Latest typecheck/lint/test output (a failing check is a blocker):
 $(tail -n 60 "$WORK/verify.log")
 
 Plan:
 $(cat "$PLAN")" \
-    --permission-mode acceptEdits | tee "$REVIEW"
+    --permission-mode acceptEdits --allowedTools $CHECK_TOOLS \
+    --disallowedTools Edit Write NotebookEdit | tee "$REVIEW"
 
   if verdict_approved; then
     APPROVED=1
@@ -86,7 +93,7 @@ $(cat "$PLAN")" \
   echo "==> 4b Fix blockers"
   claude -p "$HEADLESS Fix every blocker in this review, sending each to its owner agent (server-writer, client-writer or test-writer), then stop. Review:
 $(cat "$REVIEW")" \
-    --permission-mode acceptEdits --allowedTools $INSTALL_TOOLS --max-turns 40
+    --permission-mode acceptEdits --allowedTools $CHECK_TOOLS --max-turns 40
 done
 
 echo "==> 5 Verify (typecheck + lint + tests)"

@@ -5,6 +5,9 @@
 #   through, so a test that intentionally fails to prove a bug reported by test-writer cannot loop forever.
 set -uo pipefail
 
+# harness.sh runs its own verify and must keep review sessions read-only
+[ "${HARNESS_HEADLESS:-}" = "1" ] && exit 0
+
 INPUT="$(cat)"
 if printf '%s' "$INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true'; then
   exit 0
