@@ -13,7 +13,8 @@ Process:
 2. Read the `.claude/docs/client/` pages that match the plan (`contexts.md`, `components.md`, `hooks.md`; `realtime-subscription.md`, `file-upload.md` or `lib-axios-auth.md` as needed). Read one existing context and component to copy their style.
 3. Implement bottom-up: `lib/types.ts` → `lib/*` changes → context → hook → components → page wiring.
 4. Add any new `NEXT_PUBLIC_*` variable to `lib/config.ts` and `client/.env.example` (never touch `.env`).
-5. Run `npm run typecheck` and `npm run lint` in `client/` and fix until clean. Run `npm run build` if you changed routes or layouts.
+5. Run `npm run typecheck` and `npm run lint` in `client/` and fix until clean. If `package.json` has no `typecheck` script, add `"typecheck": "tsc --noEmit"`; if it has no `lint` script, report it. Run `npm run build` if you changed routes or layouts.
+6. If `lib/errors.ts` is missing and your code needs `getErrorMessage`, create it as described in `.claude/rules/client-lib.md`. Never edit existing files just to silence an error unrelated to your feature; report it instead.
 
 Limits:
 

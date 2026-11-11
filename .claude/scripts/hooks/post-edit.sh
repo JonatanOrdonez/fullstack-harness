@@ -7,8 +7,13 @@
 # Exit 2 sends the output back to Claude so it fixes the problem.
 set -uo pipefail
 
-INPUT="$(cat)"
-FILE="$(printf '%s' "$INPUT" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+FILE="$(python3 -c '
+import json, sys
+try:
+    print((json.load(sys.stdin).get("tool_input") or {}).get("file_path", ""))
+except Exception:
+    print("")
+' 2>/dev/null)"
 ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 
 case "$FILE" in

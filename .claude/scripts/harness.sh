@@ -10,10 +10,20 @@ cd "$(dirname "$0")/../.."
 FEATURE="${1:?Usage: harness.sh \"feature description\"}"
 MAX_ROUNDS="${MAX_ROUNDS:-3}"
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
+RESULT=fail
+# Keep plan, review and verify logs for debugging when the run does not succeed.
+trap '[ "$RESULT" = ok ] && rm -rf "$WORK" || echo "Logs kept in $WORK" >&2' EXIT
 HEADLESS="Headless run: nobody can answer questions or approve prompts. Never ask for permission. Do not run npm install: declare dependencies in package.json and the script installs them. If another command is denied, stop and report it."
 # Untrusted folders ignore permissions.allow, so the checks agents need are granted here explicitly.
-CHECK_TOOLS="Bash(npm run:*) Bash(npm test:*) Bash(npx tsc:*) Bash(npx eslint:*) Bash(npx vitest:*) Bash(git status:*) Bash(git diff:*)"
+# An array, never an unquoted string: each pattern contains spaces ("Bash(npm run test:*)") and word
+# splitting would turn it into two invalid rules, so every Bash call would be denied.
+CHECK_TOOLS=("Bash(cd:*)" "Bash(git status:*)" "Bash(git diff:*)" "Bash(npm test:*)" "Bash(npx tsc:*)" "Bash(npx eslint:*)" "Bash(npx vitest:*)")
+# Only the scripts the flow needs (never `npm run dev`, which hangs a headless run).
+for WS in server client; do
+  for SCRIPT in typecheck lint test build; do
+    CHECK_TOOLS+=("Bash(npm --prefix $WS run $SCRIPT:*)" "Bash(npm run $SCRIPT:*)")
+  done
+done
 # The Stop hook would make these sessions fix failures on their own; the script runs its own verify.
 export HARNESS_HEADLESS=1
 PLAN="$WORK/plan.md"
@@ -29,16 +39,23 @@ fi
 # Installs run from the script, not from the agents: headless agents cannot get npm install approved
 # (denied even with --allowedTools), but they can declare dependencies in package.json.
 install_deps() {
+  local rc=0
   for WORKSPACE in server client; do
     [ -f "$WORKSPACE/package.json" ] || continue
-    echo "==> npm install ($WORKSPACE)"
-    (cd "$WORKSPACE" && npm install --no-audit --no-fund) || echo "WARN: npm install failed in $WORKSPACE" >&2
+    has_changes "$WORKSPACE" || continue
+    if ! (cd "$WORKSPACE" && npm install --no-audit --no-fund >"$WORK/install-$WORKSPACE.log" 2>&1); then
+      echo "npm install FAILED in $WORKSPACE:"
+      tail -n 15 "$WORK/install-$WORKSPACE.log"
+      rc=1
+    fi
   done
+  return $rc
 }
 
 has_changes() {
   git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
-  [ -n "$(git status --porcelain -- "$1" 2>/dev/null | grep -v node_modules)" ]
+  # Second status column = working-tree changes; staged-only files (a checkpoint) do not count.
+  [ -n "$(git status --porcelain -- "$1" 2>/dev/null | grep -v node_modules | grep -E '^.[^ ]')" ]
 }
 
 has_script() { grep -q "\"$1\"[[:space:]]*:" "$2/package.json"; }
@@ -48,7 +65,10 @@ has_script() { grep -q "\"$1\"[[:space:]]*:" "$2/package.json"; }
 # failing step, so the reviewer never loses a result to a long test log.
 verify() {
   local ok=0 summary="" details="" out step
-  install_deps >/dev/null 2>&1
+  # Unchanged workspaces are not installed or checked; install errors are reported, not hidden.
+  if ! out="$(install_deps)"; then
+    summary+="install: FAIL"$'\n'; details+="$out"$'\n'; ok=1
+  fi
   for WORKSPACE in server client; do
     [ -f "$WORKSPACE/package.json" ] || continue
     has_changes "$WORKSPACE" || { summary+="$WORKSPACE: unchanged, skipped"$'\n'; continue; }
@@ -78,17 +98,25 @@ verdict_approved() {
 
 echo "==> 1 Plan"
 claude -p "Use the feature-planner agent to plan this feature: $FEATURE. Output only the plan." \
-  --permission-mode plan | tee "$PLAN"
+  --permission-mode plan --max-turns 20 | tee "$PLAN"
 
 echo "==> 2 Implement server, then client"
 claude -p "$HEADLESS Implement this plan. Run the server-writer agent first and, when it finishes, the client-writer agent. Plan:
 $(cat "$PLAN")" \
-  --permission-mode acceptEdits --allowedTools $CHECK_TOOLS --max-turns 40
+  --permission-mode acceptEdits --allowedTools "${CHECK_TOOLS[@]}" --max-turns 40
 
 echo "==> 3 Tests"
-claude -p "$HEADLESS Run the test-writer agent to write tests for the feature that was just implemented. Plan:
+claude -p "$HEADLESS Run the test-writer agent to write tests for the feature that was just implemented. End your answer with exactly one line: 'BUGS: none' or 'BUGS: ' followed by the real production bugs it reported (file and behavior). Plan:
 $(cat "$PLAN")" \
-  --permission-mode acceptEdits --allowedTools $CHECK_TOOLS --max-turns 30
+  --permission-mode acceptEdits --allowedTools "${CHECK_TOOLS[@]}" --max-turns 30 | tee "$WORK/tests.md"
+
+# Real bugs found by the tests go to their owner agent before the review (like /add-feature does).
+BUGS_LINE="$(grep -E '^[[:space:]*`]*BUGS:' "$WORK/tests.md" | tail -n1 | sed 's/^[[:space:]*`]*BUGS:[[:space:]]*//')"
+if [ -n "$BUGS_LINE" ] && ! printf '%s' "$BUGS_LINE" | grep -qiE '^[[:space:]*`]*none'; then
+  echo "==> 3b Fix bugs found by the tests"
+  claude -p "$HEADLESS The tests found production bugs. Send each one to its owner agent (server-writer or client-writer) to fix, never to test-writer, then stop. Bugs: $BUGS_LINE" \
+    --permission-mode acceptEdits --allowedTools "${CHECK_TOOLS[@]}" --max-turns 30
+fi
 
 APPROVED=0
 for ROUND in $(seq 1 "$MAX_ROUNDS"); do
@@ -103,8 +131,8 @@ $(cat "$WORK/verify.log")
 
 Plan:
 $(cat "$PLAN")" \
-    --permission-mode acceptEdits --allowedTools $CHECK_TOOLS \
-    --disallowedTools Edit Write NotebookEdit | tee "$REVIEW"
+    --permission-mode acceptEdits --allowedTools "${CHECK_TOOLS[@]}" \
+    --disallowedTools Edit Write NotebookEdit --max-turns 30 | tee "$REVIEW"
 
   if verdict_approved; then
     APPROVED=1
@@ -115,7 +143,7 @@ $(cat "$PLAN")" \
   echo "==> 4b Fix blockers"
   claude -p "$HEADLESS Fix every blocker in this review, sending each to its owner agent (server-writer, client-writer or test-writer), then stop. Review:
 $(cat "$REVIEW")" \
-    --permission-mode acceptEdits --allowedTools $CHECK_TOOLS --max-turns 40
+    --permission-mode acceptEdits --allowedTools "${CHECK_TOOLS[@]}" --max-turns 40
 done
 
 echo "==> 5 Verify (typecheck + lint + tests)"
@@ -124,6 +152,7 @@ verify > "$WORK/verify.log" 2>&1 || VERIFIED=1
 cat "$WORK/verify.log"
 
 if [ "$APPROVED" -eq 1 ] && [ "$VERIFIED" -eq 0 ]; then
+  RESULT=ok
   echo "OK: feature implemented"
 else
   echo "FAIL: approved=$APPROVED verify_failed=$VERIFIED"

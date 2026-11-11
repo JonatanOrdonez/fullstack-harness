@@ -14,7 +14,7 @@ It follows a plan → implement → test → review loop, enforced by agents, ru
 | `.claude/rules/` | Path-scoped conventions loaded automatically |
 | `.claude/settings.json` | Permissions and hooks |
 | `.claude/docs/` | On-demand reference: patterns and code templates (see `.claude/docs/README.md`) |
-| `.claude/scripts/` | `harness.sh` (headless flow) and the hook scripts |
+| `.claude/scripts/` | `harness.sh` (headless flow) and the hook scripts (`block-env.sh` blocks any tool call touching a real `.env`, `post-edit.sh` lints the edited file, `stop.sh` runs typecheck, lint and tests on changed workspaces) |
 
 ## Use it
 
